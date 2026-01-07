@@ -3,7 +3,6 @@ import { ReactNode } from "react";
 
 function slugify(text: ReactNode): string {
   if (typeof text !== "string") {
-    // Handle case where children might be an array or other elements
     if (Array.isArray(text)) {
       return text.map(slugify).join("");
     }

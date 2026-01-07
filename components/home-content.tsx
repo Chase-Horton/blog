@@ -26,10 +26,10 @@ export function HomeContent() {
                         </h2>
                         
                         <p 
-                            className="text-xl text-muted-foreground leading-relaxed animate-blur-in"
+                            className="text-xl text-muted-foreground leading-relaxed animate-blur-in text-balance"
                             style={{ animationDelay: "1400ms" }}
                         >
-                            A software engineer passionate about building useful tools and sharing information.
+                            I write software to solve problems and share information.
                         </p>
 
                         {/* TODO: Add a CTA button here later */}
@@ -37,7 +37,7 @@ export function HomeContent() {
                 )}
             </div>
 
-            <div className="absolute bottom-0 right-0 p-0 md:pr-4 flex items-end justify-end select-none pointer-events-none opacity-80 mix-blend-overlay md:mix-blend-normal mb-10">
+            <div className="absolute bottom-0 right-0 p-0 md:pr-4 flex items-end justify-end select-none pointer-events-none opacity-80 mix-blend-overlay md:mix-blend-normal mb-6">
                 <h1 className="text-[35vw] md:text-[25vw] font-bold tracking-tighter leading-[0.8] flex text-foreground/10">
                     {letters.map((letter, index) => {
                         const reverseIndex = letters.length - 1 - index;

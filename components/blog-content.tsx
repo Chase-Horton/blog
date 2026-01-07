@@ -25,7 +25,7 @@ export function BlogContent({ posts }: BlogContentProps) {
     return (
         <div className="mx-auto max-w-2xl px-6 pb-16 pt-32">
             {/* Intro section */}
-            <div className="mb-16">
+            {/*<div className="mb-16">
                 <h1 
                     className="text-3xl font-bold tracking-tight mb-4 transition-all duration-500"
                     style={{
@@ -45,7 +45,7 @@ export function BlogContent({ posts }: BlogContentProps) {
                 >
                     Writing about programming, tools, and things I find interesting.
                 </p>
-            </div>
+            </div>*/}
 
             {/* Posts list */}
             <div className="space-y-6">

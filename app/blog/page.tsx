@@ -26,7 +26,6 @@ async function getPosts(): Promise<PostMeta[]> {
             .map(async (filename) => {
                 const slug = filename.replace(".mdx", "");
                 const { frontmatter } = await import(`@/content/posts/${slug}.mdx`);
-                console.log(frontmatter.date)
                 return {
                     slug,
                     title: frontmatter.title,
