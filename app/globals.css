@@ -93,7 +93,7 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(0.78 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -121,6 +121,30 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .animate-blur-in {
+    /* 0.8s duration
+       cubic-bezier: Starts fast, slows down gently (premium feel)
+       forwards: Keeps the element visible at the end state 
+    */
+    animation: blurIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    opacity: 0; /* Ensure it starts invisible */
+  }
+
+  @keyframes blurIn {
+    0% {
+      opacity: 0;
+      transform: translateY(20px); /* Slides up from bottom */
+      filter: blur(10px);          /* Starts blurry */
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
   }
 }
 

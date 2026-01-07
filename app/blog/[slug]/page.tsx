@@ -2,6 +2,7 @@ import path from "node:path";
 import fs from "node:fs";
 import type { Metadata } from "next";
 import "highlight.js/styles/github-dark.css";
+import { TableOfContents } from "@/components/table-of-contents";
 
 export default async function BlogPage({
     params,
@@ -14,13 +15,18 @@ export default async function BlogPage({
         const {frontmatter} = await import(`@/content/posts/${slug}.mdx`);
 
     return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
       <div className="mx-auto max-w-3xl px-6 py-16">
         <div className="mb-6">
           <span className="text-[#00D9FF] text-sm font-medium uppercase tracking-wider">{frontmatter.tag}</span>
         </div>
         <Post />
       </div>
+      
+      {/* Right sidebar - Table of Contents */}
+      <aside className="hidden lg:block fixed top-24 right-8 w-64">
+        <TableOfContents />
+      </aside>
     </div>
     );
 }

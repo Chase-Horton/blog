@@ -1,12 +1,12 @@
 ---
-title: "Testing MDX with Next.js"
-date: "2024-01-05"
-description: "A comprehensive guide to the App Router."
+title: "How to Publish a Python Package with uv"
+date: "2026-01-05"
+description: "A step-by-step guide to publishing a Python package using uv."
 tags: ["nextjs", "react", "webdev"]
 tag: "Python"
 isPublished: true
 ---
-# Publishing a Python package with UV
+# Publishing a Python package with uv
 
   If you've build a [Python](https://www.python.org/) package before, you know it requires a variety of tools.
 - [venv](https://docs.python.org/3/library/venv.html) - for creating isolated environments
@@ -14,24 +14,24 @@ isPublished: true
 - [twine](https://twine.readthedocs.io/en/stable/) - for uploading packages to PyPI
 - [pip](https://pip.pypa.io/en/stable/) - for installing dependencies
 
-[UV](https://docs.astral.sh/uv/) is a tool that seeks to simplify this process
+[uv](https://docs.astral.sh/uv/) is a tool that seeks to simplify this process
 by automating many of the steps involved in packaging and publishing Python packages.
-In the next few minutes I'll show you how to use UV to publish a Python package to [PyPI](https://pypi.org/).
+In the next few minutes I'll show you how to use uv to publish a Python package to [PyPI](https://pypi.org/).
 
 
 ## Prerequisites
-Before we begin, you will need to install UV. You can do this a variety of ways,
-documented in the [UV installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+Before we begin, you will need to install uv. You can do this a variety of ways,
+documented in the [uv installation guide](https://docs.astral.sh/uv/getting-started/installation/).
 The easiest way is with a simple shell script:
 ```bash
 $ curl -sSL https://uv.astral.sh/install.sh | sh
 ```
 
-## Step 1: Initialize your package
-To setup a new Python package with UV, navigate to the directory where you want to create your package
+## Step 1: Initializing a package
+To setup a new Python package with uv, navigate to the directory where you want to create your package
 and run the following command:
 ```bash
-$ uv init --lib my-calc-package
+$ uv init --lib my-package
 ```
 This will create a new directory called `my-package` with the basic structure of a Python package.
 ```tree
@@ -49,7 +49,7 @@ A quick overview of each of these files:
 - `pyproject.toml`: This file contains metadata about your package, such as its name, version, and dependencies.
 - `README.md`: This file contains a description of your package.
 
-## Step 2: Creating your package
+## Step 2: Creating a package
 Navigate to the `src/my_package` directory to start adding your Python code.
 for this example, we'll create a calculator package with basic arithmetic functions.
 
@@ -63,13 +63,13 @@ def subtract(a: float, b: float) -> float:
 ```
 Now we need to update the `__init__.py` file
 to make these functions available when the package is imported. Currently we would
-have to import the functions like
+have to import the functions like:
 ```python
 >>> from my_package.calculator import add, subtract
 >>> add(2, 3)
 5
 ```
-which is alright, but would not be very user friendly if
+That's alright, but it wouldn't not be very user friendly if
 our package was named something like `calc`.
 For more information on structuring Python packages, 
 check out the [official documentation](https://packaging.python.org/en/latest/tutorials/packaging-projects/).
@@ -88,7 +88,7 @@ This allows users to import the functions directly from the package:
 There are many options you can configure in your `pyproject.toml` file, and I recommend
 checking out the pypi documentation on [packaging and distributing projects](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#writing-pyproject-toml)
 to learn more. 
-{/*UV should handle the dependencies and build system automatically, as well as setting the README file as the long description.*/}
+{/*uv should handle the dependencies and build system automatically, as well as setting the README file as the long description.*/}
 
 **At a minimum you should update the following fields in** `pyproject.toml`
 - `name`: The name of your package.
@@ -131,15 +131,100 @@ urls = [
 requires = ["uv_build>=0.9.21,<0.10.0"]
 build-backend = "uv_build"
 ```
-## Step 4: Building and publishing your package
+## Step 4: Building a package
 Now that your package is ready, you can build and publish it to PyPI.
 To build your package, run the following command in the root directory of your package:
 ```bash
 $ uv build
+Building source distribution (uv build backend)...
+Building wheel from source distribution (uv build backend)...
+Successfully built dist\my_package-0.1.0.tar.gz
+Successfully built dist\my_package-0.1.0-py3-none-any.whl
 ```
 This will create a `dist` directory containing the built package files.
-To publish your package to PyPI, run the following command, and paste your PyPI credentials when prompted:
+- `my-package-0.1.0.tar.gz`: An archive of your source code to be uploaded with your package.
+- `my-package-0.1.0-py3-none-any.whl`: A wheel file, which is a pre-compiled package ready to be installed directly
+with tools like uv or pip.
+
+For more information about .whl files check out the [official documentation](https://packaging.python.org/en/latest/specifications/binary-distribution-format/).
+
+
+## Step 5: Publishing a package
+To publish your package, first [create an account on PyPI](https://pypi.org/account/register/)
+if you don't already have one. Next, head over to the [API tokens page](https://pypi.org/manage/account/token/)
+and create a new token.
+
+![PyPi API Tokens](/pypi_token.png)
+
+Note: Make sure to copy the token and store it securely, as you won't be able to see it again.
+Trusted Providers are recommended for better security; see how to set them up in my other post [here](/)
+
+Now you can publish your package using the following command:
 ```bash
-$ uv publish
+$ uv publish --token PASTE_YOUR_PYPI_TOKEN_HERE
 ```
 This will upload your package to PyPI, making it available for others to install and use.
+Try installing your package using pip:
+```python
+$ pip install my-package
+$ python
+
+>>> from my_package import add, subtract
+>>> add(5, 7)
+12
+>>> subtract(10, 4)
+6
+```
+
+## Additional Reading
+
+### Dependencies
+If our package needs other packages as dependencies, uv streamlines this process. For a simple example, I'll
+add the [faker](https://pypi.org/project/Faker/) package, which generates fake data.
+
+To add faker as a dependency for our package, we simply need to run:
+```bash
+$ uv add faker
+Using CPython 3.13.5
+Creating virtual environment at: .venv
+Resolved 3 packages in 6ms
+      Built test-pack @ file:///B:/tutorials/test-pack
+Prepared 1 package in 19ms
+Installed 3 packages in 640ms
+ + faker==40.1.0
+ + my-package==0.1.0 (from file:///B:/tutorials/my-package)
+ + tzdata==2025.3
+ ```
+Because I ran this in a fresh project, it first created a virtual environment
+and then installs faker and its dependency `tzdata` to our project.
+
+If we open `pyproject.toml` we will see it updated accordingly
+```toml
+requires-python = ">=3.13"
+dependencies = [
+    "faker>=40.1.0",
+]
+```
+
+[`uv.lock`](https://docs.astral.sh/uv/concepts/projects/sync/) will also be created/updated to lock the dependencies to specific versions,
+ensuring consistent installs across different environments. 
+
+To illustrate the issue lock files seek to solve, if someone has specified `faker>=39` in their `pyproject.toml` file in a package without a lock file.
+When they run `uv install`, uv will resolve and install the latest compatible version of `faker`.
+
+*Developer 1* could install the package today and get `faker v39`.
+
+*Developer 2* installing the package in a few months may get `faker v41` which could break your code if v41
+introduced breaking changes to the API.
+
+By using a lock file, both developers will install the same version of `faker`, ensuring consistency.
+
+### Open Source best practices
+When publishing an open source package, there are a few best practices to follow to ensure your package is easy to use and maintain.
+Here are are a few, as well as useful links to reference.
+- Include a [`CONTRIBUTING.md`](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/setting-guidelines-for-repository-contributors) file to provide guidelines for contributing to your project
+- Include a [`CODE_OF_CONDUCT.md`](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/adding-a-code-of-conduct-to-your-project) file to set expectations for behavior in your project's community
+- Use [Semantic Versioning](https://semver.org/) for your package versions
+- Include [tests](https://docs.pytest.org/en/stable/) for your package to ensure its functionality
+- Write [clear](https://www.writethedocs.org/guide/writing/beginners-guide-to-docs/) and [concise](https://google.github.io/styleguide/docguide/best_practices.html) documentation for your package
+    - Nobody is going to use your package if they don't know how to use it!
