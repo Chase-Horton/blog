@@ -1,4 +1,3 @@
-"use client";
 import { Header } from "./header";
 
 export function TitlePage({ title, description, children }: { title: string, description: string, children: React.ReactNode }) {

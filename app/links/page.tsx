@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { LinksContent } from "@/components/links-content";
+import { TitlePage } from "@/components/title-page";
+import { sections } from "./links";
+import { SectionComponent } from "./section-component";
 
 export const metadata: Metadata = {
     title: "Links",
@@ -7,9 +9,21 @@ export const metadata: Metadata = {
 };
 
 export default function LinksPage() {
+    let globalIndex = 0;
     return (
-        <div className="min-h-screen">
-            <LinksContent />
-        </div>
+        <TitlePage
+            title="links"
+            description="A curated collection of useful information and tools."
+        >
+            {sections.map((section) => {
+                return (
+                    <SectionComponent
+                        key={section.title}
+                        section={section}
+                        globalIndex={globalIndex++}
+                    />
+                );
+            })}
+        </TitlePage>
     );
 }

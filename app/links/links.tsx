@@ -1,20 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Header } from "./header";
-
-interface Link {
-    title: string;
-    url: string;
-    description?: string;
-    subtitle?: string;
-}
-
-interface Section {
-    title: string;
-    links: Link[];
-}
-
+import { Section } from "./section-component";
 const sections: Section[] = [
     {
         title: "free books",
@@ -30,9 +14,9 @@ const sections: Section[] = [
                 description: "The classic computer science book from MIT."
             },
             //{
-                //title: "Feynman Lectures on Physics",
-                //url: "https://www.feynmanlectures.caltech.edu/",
-                //description: "An interesting collection of lectures by Richard Feynman that cover a wide range of physics topics."
+            //title: "Feynman Lectures on Physics",
+            //url: "https://www.feynmanlectures.caltech.edu/",
+            //description: "An interesting collection of lectures by Richard Feynman that cover a wide range of physics topics."
             //}
         ],
     },
@@ -133,9 +117,9 @@ const sections: Section[] = [
                 description: "Listen to live radio stations around the world by rotating a 3D globe.",
             },
             //{
-                //title: "Wikipedia",
-                //url: "http://listen.hatnote.com/",
-                //description: "An ambient visualization that generates music based on real-time edits to Wikipedia."
+            //title: "Wikipedia",
+            //url: "http://listen.hatnote.com/",
+            //description: "An ambient visualization that generates music based on real-time edits to Wikipedia."
             //},
             {
                 title: "Pool Suite",
@@ -188,7 +172,7 @@ const sections: Section[] = [
                 description: 'A "modern" fork of vim, the classic terminal-based text editor.',
             },
             {
-                title : "Postman",
+                title: "Postman",
                 url: "https://www.postman.com/",
                 description: "A nice tool for testing and debugging APIs.",
             },
@@ -225,98 +209,7 @@ const sections: Section[] = [
         ],
     }
 ];
-
-export function LinksContent() {
-    let sorted_sections = sections.map((section) => {
-        const sorted_links = section.links.sort((a, b) =>
-            a.title.localeCompare(b.title)
-        );
-        return {
-            title: section.title,
-            links: sorted_links,
-        };
-    });
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    let itemIndex = 0;
-
-    return (
-        <div className="mx-auto max-w-2xl px-6 pb-16 pt-32">
-            {mounted && <Header title="links" description="A curated collection of useful information and tools." />}
-            {sections.map((section, sectionIdx) => {
-                const sectionDelay = itemIndex;
-                itemIndex++; // for the header
-
-                return (
-                    <section key={section.title} className="mb-12">
-                        <h2
-                            className="text-s w-fit font-mono pb-2 text-blue-400 transition-all duration-500"
-                            style={{
-                                opacity: mounted ? 1 : 0,
-                                transform: mounted ? "translateY(0)" : "translateY(10px)",
-                                transitionDelay: `${sectionDelay * 50}ms`,
-                            }}
-                        >
-                            {section.title}
-                        </h2>
-                        <ul className="space-y-2">
-                            {section.links.map((link) => {
-                                const delay = itemIndex * 50;
-                                itemIndex++;
-
-                                return (
-                                    <li
-                                        key={link.url}
-                                        className="font-mono text-muted-foreground transition-all duration-500 relative hover:z-20 text-sm"
-                                        style={{
-                                            opacity: mounted ? 1 : 0,
-                                            transform: mounted ? "translateY(0)" : "translateY(10px)",
-                                            transitionDelay: `${delay}ms`,
-                                        }}
-                                    >
-                                        <div className="group relative w-fit">
-                                        <a
-                                            href={link.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-foreground hover:text-[#00D9FF] transition-colors"
-                                        >
-                                            {link.title}
-                                        </a>
-                                        {link.subtitle && (
-                                            <span className="ml-2 text-xs font-medium uppercase tracking-wide text-[#00D9FF]/80 bg-[#00D9FF]/10 px-2 py-0.5 rounded-full">{link.subtitle}</span>
-                                        )}
-                                        {link.description && (
-                                            <div className="
-                absolute left-0 top-full pt-2 z-50
-                opacity-0 pointer-events-none -translate-y-2 
-                group-hover:opacity-100 group-hover:translate-y-0 
-                transition-all duration-300 ease-out 
-                
-
-                
-                /* Layout Logic: */
-                w-156
-            ">
-                                                <div className="bg-secondary px-3 py-2 rounded-lg shadow-lg border border-white/10">
-                                                    <p className="text-neutral-300 text-sm">
-                                                        {link.description}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </section>
-                );
-            })}
-        </div>
-    );
+for (const section of sections) {
+    section.links.sort((a, b) => a.title.localeCompare(b.title));
 }
+export { sections };
