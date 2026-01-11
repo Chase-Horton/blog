@@ -1,5 +1,6 @@
 import type { MDXComponents } from "mdx/types";
 import { ReactNode } from "react";
+import {Note} from "@/components/mdx/note";
 
 function slugify(text: ReactNode): string {
   if (typeof text !== "string") {
@@ -44,11 +45,15 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       <p className="mb-6 text-lg leading-relaxed text-muted-foreground" {...props} />
     ); },
     strong: (props) => <strong className="font-semibold text-foreground" {...props} />,
-    em: (props) => <em className="font-semibold text-muted-foreground not-italic" {...props} />,
+    em: (props) => <em className="text-muted-foreground" {...props} />,
     li: (props) => <li className="text-lg leading-relaxed text-muted-foreground [&>ul]:mt-2 [&>ul]:mb-0 [&>ol]:mt-2 [&>ol]:mb-0" {...props} />,
     ul: (props) => <ul className="mb-6 ml-6 space-y-2 list-disc marker:text-[#00D9FF] [&_ul]:list-[circle] [&_ul_ul]:list-[square]" {...props} />,
     ol: (props) => <ol className="mb-6 ml-6 space-y-2 list-decimal marker:text-[#00D9FF]" {...props} />,
     a: (props) => <a className="text-[#00D9FF] font-medium hover:underline" {...props} />,
     img: (props) => <img className="rounded-lg mb-6 w-full" {...props} />,
+    blockquote: (props) => (
+      <blockquote className="italic text-muted-foreground border-l-4 border-[#ad9407] pl-4 " {...props} />
+    ),
+    Note,
   };
 }

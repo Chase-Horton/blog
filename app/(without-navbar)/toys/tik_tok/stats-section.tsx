@@ -17,94 +17,138 @@ export function StatsSection({ birthdate, timeRemaining }: { birthdate: Date | n
     if (!birthdate || !timeRemaining) {
         return null;
     }
-    const [isDebug, setIsDebug] = useState(false)
+    const [isDebug, setIsDebug] = useState(false);
 
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+const audioContextRef = useRef<AudioContext | null>(null);
+const audioBufferRef = useRef<AudioBuffer | null>(null);
+const gainNodeRef = useRef<GainNode | null>(null);
+const isPlayingRef = useRef(false);
+const schedulerIdRef = useRef<number | null>(null);
 
-    useEffect(() => {
-        const audio = new Audio("/audio/tik-tok-2.mp3");
+// Setup: load audio buffer and keydown listener
+useEffect(() => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+    gainNode.gain.value = 0;
 
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === ".") {
-                e.preventDefault()
-                setIsDebug((prev) => !prev);
-            }
+    audioContextRef.current = audioContext;
+    gainNodeRef.current = gainNode;
+
+    fetch("/audio/tik-tok-2.mp3")
+        .then(res => res.arrayBuffer())
+        .then(data => audioContext.decodeAudioData(data))
+        .then(buffer => {
+            audioBufferRef.current = buffer;
+        })
+        .catch(e => console.error("Failed to load audio:", e));
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === " ") {
+            e.preventDefault();
+            setIsDebug(prev => !prev);
         }
-        window.addEventListener("keydown", handleKeyDown)
+    };
+    window.addEventListener("keydown", handleKeyDown);
 
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const source = audioContext.createMediaElementSource(audio);
-        const gainNode = audioContext.createGain();
+    return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        gainNode.disconnect();
+        audioContext.close();
+    };
+}, []);
 
-        source.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        audio.loop = true;
-        gainNode.gain.value = 0; // start silent for fade-in
-
-        audioRef.current = audio;
-
-        (audio as any)._audioContext = audioContext;
-        (audio as any)._gainNode = gainNode;
-
-        return () => {
-            audio.pause()
-            source.disconnect();
-            gainNode.disconnect();
-            audioContext.close();
-            audio.src = "";
-            window.removeEventListener("keydown", handleKeyDown)
-        };
-    }, []);
-
+    // Playback control based on isDebug
     useEffect(() => {
-        const audio = audioRef.current;
-        if (!isDebug) return;
-        if (!audio || !birthdate) return;
+    const audioContext = audioContextRef.current;
+    const gainNode = gainNodeRef.current;
 
-        const audioContext = (audio as any)._audioContext;
+    if (!audioContext || !gainNode) return;
 
-        const waitForSecondFlip = () => {
+    if (isDebug && birthdate) {
+        isPlayingRef.current = true;
+
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        const CLIP_DURATION = 2; // seconds
+        const SCHEDULE_AHEAD = 0.1; // schedule 100ms ahead to avoid gaps
+
+        const scheduler = () => {
+            if (!isPlayingRef.current || !audioBufferRef.current) return;
+
             const now = Date.now();
             const msUntilNextSecond = 1000 - (now % 1000);
+            
+            // Schedule if we're within SCHEDULE_AHEAD of the next second boundary
+            // or if this is the first call (schedule immediately for next boundary)
+            const startTime = audioContext.currentTime + (msUntilNextSecond / 1000);
 
-            if (msUntilNextSecond < 20) {
-                if (audioContext.state === 'suspended') {
-                    audioContext.resume();
+            const bufferSource = audioContext.createBufferSource();
+            bufferSource.buffer = audioBufferRef.current;
+            bufferSource.connect(gainNode);
+            bufferSource.start(startTime);
+
+            // Schedule the next tick to run shortly before this clip ends
+            // Clip is 2 seconds, so schedule next one in ~2 seconds
+            const nextScheduleDelay = (msUntilNextSecond + (CLIP_DURATION * 1000) - (SCHEDULE_AHEAD * 1000));
+            
+            schedulerIdRef.current = window.setTimeout(() => {
+                if (isPlayingRef.current) {
+                    scheduler();
                 }
+            }, nextScheduleDelay);
+        };
 
-                audio.play().then(() => {
-                    fadeAudio(audio, true);
-                }).catch(e => console.log("Autoplay prevented:", e));
+        // Wait for buffer to load if not ready yet
+        const startPlayback = () => {
+            if (audioBufferRef.current) {
+                scheduler();
+                fadeGain(gainNode, true);
             } else {
-                requestAnimationFrame(waitForSecondFlip);
+                const checkBuffer = setInterval(() => {
+                    if (audioBufferRef.current) {
+                        clearInterval(checkBuffer);
+                        scheduler();
+                        fadeGain(gainNode, true);
+                    }
+                }, 50);
+                return () => clearInterval(checkBuffer);
             }
         };
 
-        waitForSecondFlip();
-    }, [isDebug]);
+        startPlayback();
 
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-        if (!isDebug) {
-            fadeAudio(audio, false);
-        } 
-    }, [isDebug]);
+    } else {
+        isPlayingRef.current = false;
+        
+        if (schedulerIdRef.current) {
+            clearTimeout(schedulerIdRef.current);
+            schedulerIdRef.current = null;
+        }
+        
+        fadeGain(gainNode, false);
+    }
 
-const fadeAudio = (
-    audio: HTMLAudioElement, 
-    fadeIn: boolean, 
-    targetVolume: number = 0.3, 
+    return () => {
+        if (schedulerIdRef.current) {
+            clearTimeout(schedulerIdRef.current);
+            schedulerIdRef.current = null;
+        }
+    };
+}, [isDebug, birthdate]);
+
+const fadeGain = (
+    gainNode: GainNode,
+    fadeIn: boolean,
+    targetVolume: number = 0.3,
     fadeDuration: number = 2000
 ) => {
-    const gainNode = (audio as any)._gainNode;
-    if (!gainNode) return;
-    
-    const startVolume = fadeIn ? 0 : gainNode.gain.value;
+    const startVolume = gainNode.gain.value;
     const endVolume = fadeIn ? targetVolume : 0;
     const startTime = Date.now();
-    
+
     const tick = () => {
         const elapsed = Date.now() - startTime;
         if (elapsed < fadeDuration) {
@@ -113,7 +157,6 @@ const fadeAudio = (
             requestAnimationFrame(tick);
         } else {
             gainNode.gain.value = endVolume;
-            if (!fadeIn) audio.pause();
         }
     };
     tick();
@@ -158,6 +201,8 @@ const fadeAudio = (
                     </div>
                 </div>
             )}
+            <div className="text-muted-foreground font-mono text-sm w-full flex items-center justify-center pt-12 animate-in fade-in duration-500 slide-in-from-bottom-4 fill-mode-backwards"
+                style={{animationDuration:"700ms", animationDelay:"800ms"}}>press space to toggle audio</div>
         </div>
     )
 }
