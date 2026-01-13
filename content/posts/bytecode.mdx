@@ -192,8 +192,8 @@ is unnecessary overhead, we are putting an item from the stack into storage then
 immediately reading it back onto the stack to output it.
 
 This is a simple example of where a compiled language may help, most of which would
-automatically replace our inefficient instructions. In fact, Python can perform
-this optimization in some cases, known as "[peephole optimization](https://docs.python.org/3/library/dis.html#peephole-optimizer)".
+automatically replace our inefficient instructions with a more optimal version like
+`return a + b`, but the Python compiler only performs optimzations across single statements. 
 
 ## Unintuitive Aspects
 Now lets look at some examples of bytecode that may be surprising.

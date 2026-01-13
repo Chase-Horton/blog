@@ -5,19 +5,26 @@ import { useState } from "react";
 
 export function NavBar() {
     const [menuOpen, setMenuOpen] = useState(false);
+
+    const handleLogoClick = (e: React.MouseEvent) => {
+        if (window.innerWidth < 640) {
+            e.preventDefault();
+            setMenuOpen((v) => !v);
+        }
+    };
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-background/60 backdrop-blur-md">
             <div className="flex h-16 items-center justify-between px-8 md:px-12 w-full">
                 <div className="flex items-center gap-8">
                     {/* logo acts as dropdown trigger on mobile */}
-                    <button
+                    <Link href="/"
                         className="font-mono text-xl font-bold tracking-tighter hover:text-blue-400 transition-colors md:p-0 p-2 focus:outline-none bg-transparent border-0"
-                        onClick={() => setMenuOpen((v) => !v)}
+                        onClick={handleLogoClick}
                         aria-label="Open menu"
                         type="button"
                     >
                         <span className="text-blue-400 mr-0.5">~</span>/
-                    </button>
+                    </Link>
                     <span className="text-white/20">|</span>
                     {/* desktop nav */}
                     <div className="hidden md:flex items-center gap-6 text-sm font-medium font-mono">
