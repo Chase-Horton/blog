@@ -9,6 +9,7 @@ interface PostMeta {
     tag: string;
     isPublished: boolean;
     md_content: string;
+    hidden: boolean;
 }
 
 export async function getPosts(): Promise<PostMeta[]> {
@@ -31,6 +32,7 @@ export async function getPosts(): Promise<PostMeta[]> {
                     date: frontmatter.date,
                     tag: frontmatter.tag,
                     isPublished: frontmatter.isPublished ?? true,
+                    hidden: frontmatter.hidden ?? false,
                     md_content: mdContent,
                 };
             })

@@ -116,10 +116,7 @@ We'll first create traversal logic utilizing the `yield` expression and
 > which start fresh on every invocation). [Python Yield Documentation](https://docs.python.org/3/reference/expressions.html#yieldexpr)
 
 ```py
-def walk_files(file_system:dict, exclude_dirs=None, current_path=""):
-    if exclude_dirs is None:
-        exclude_dirs = set()
-
+def walk_files(file_system:dict, exclude_dirs, current_path=""):
     for name, content in file_system.items():
         full_path = f"{current_path}/{name}" if current_path else name
 
@@ -201,8 +198,10 @@ This may seem like overkill for simple traversals, but when handling many types 
 complex recursions, this pattern becomes extremely convenient.
 
 ## Tree Example
-If we needed to implement an algorithm that requiresuse of post-order and
-pre-order traversals of a tree, we can create two generators.
+If we needed to implement an algorithm that requires use of post-order and
+pre-order traversals of a tree, like the 
+[Reingold-Tilford algorithm](https://reingold.co/tidier-drawings.pdf) we can
+create two generators.
 
 ```py
 class TreeNode:
@@ -260,10 +259,10 @@ generators.
 def combined_traversal(root: TreeNode):
     for value in root.post_order():
         print(f"Post-order visit: {value}")
-        # some work needed before pre-order children are processed
+        # initialize values during first walk
     for value in root.pre_order():
         print(f"Pre-order visit: {value}")
-        # some work needed after post-order children are processed
+        # modify final values during second walk
 combined_traversal(root)
 ```
 

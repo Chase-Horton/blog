@@ -14,7 +14,11 @@ export default async function BlogPage() {
     return (
     <TitlePage title="blog" description="thoughts on programming, and technology.">
       <div className="space-y-6 max-w-3xl">
-        {posts.map((post, index) => (
+        {posts.map((post, index) => {
+          if (post.hidden) {
+            return null;
+          }
+          return (
           <Link
             key={post.slug}
             href={`/blog/${post.slug}`}
@@ -40,7 +44,9 @@ export default async function BlogPage() {
               <p className="text-muted-foreground text-sm mt-1">{post.description}</p>
             </article>
           </Link>
-        ))}
+          );
+        }
+      )}
       </div>
     </TitlePage>
     );

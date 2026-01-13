@@ -23,6 +23,24 @@ function slugify(text: ReactNode): string {
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     ...components,
+    table: (props) => (
+      <table className="min-w-full border border-gray-300 my-6 text-sm rounded-lg overflow-hidden" {...props} />
+    ),
+    thead: (props) => (
+      <thead className="" {...props} />
+    ),
+    tbody: (props) => (
+      <tbody className="divide-y divide-gray-200" {...props} />
+    ),
+    tr: (props) => (
+      <tr className="" {...props} />
+    ),
+    th: (props) => (
+      <th className="border px-3 py-2 text-left font-semibold text-muted-foreground" {...props} />
+    ),
+    td: (props) => (
+      <td className="border px-3 py-2 text-muted-foreground" {...props} />
+    ),
     h1: (props) => {
       const id = slugify(props.children);
       return <h1 id={id} className="mb-12 text-5xl font-bold leading-tight tracking-tight text-balance lg:text-6xl" {...props} />;

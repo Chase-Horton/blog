@@ -1,0 +1,428 @@
+---
+title: "Understanding Python Bytecode to Optimize Performance"
+date: "2026-01-11"
+description: "An introduction to how the Python Virtual Machine executes bytecode and tips we can learn from it."
+tag: "Python"
+isPublished: true
+hidden: true
+---
+# Understanding Python Bytecode
+
+## Introduction
+This post is structured to be informative both for people unfamiliar with how interpreters work and for those looking to optimize their Python code by understanding how it executes bytecode. Feel free to skip to the section relavent to you using the sidebar.
+
+
+## Compilation Vs. Interpretation
+
+The common distinction made between "compiled" and "interpreted" languages is, at best, a simplification and, at worst, actively misleading. The terms describe implementation details, not inherent properties of languages themselves.
+
+Any language can, in principle, be compiled or interpreted. What differs is how the language is typically implemented and the point at which the translation from source code to executable instructions occurs.
+
+### Ahead-Of-Time Compilation (AOT)
+In Ahead-Of-Time Compilation, the entire source code is compiled before execution by a program called a *compiler*. The compiler will take the completed source code and convert each human written instruction into the necessary CPU instructions to achieve the desired effect.
+
+This means the executables you create run natively on your CPU's [instruction set architecture](https://en.wikipedia.org/wiki/Instruction_set_architecture) (ISA) i.e. your compiled executables will not require any external programs to run. However, this also means that your program will not run on any platforms with a differing ISA.
+
+Every popular programming language today has compilers implemented for all major platforms. Meaning you could take the same source code and compile it with a different compiler, targeting a different machine, and produce a different executable for the target platform, i.e. AOT-compilation is "source-portable".
+
+**Pros:**
+- CPU runs code directly, no overhead
+    - Utilizes hardware features like [branch prediction](https://en.wikipedia.org/wiki/Branch_predictor) and [out-of-order execution](https://en.wikipedia.org/wiki/Out-of-order_execution) more effectively
+- The build step can catch many errors before runtime
+- Compiler can perform extensive machine code optimizations
+
+**Cons:**
+- Can include slow compilation step
+- Can be hard to compile for platforms you do not have access to
+- Targeting many platforms leads to a complex build system
+- Less flexibility for dynamic features at runtime
+
+### Interpretation and Imaginary Computers
+You may have heard often that Python is an *interpreted* language and while this is true, many people think this means Python code is not compiled, but this is not the case.
+
+Now that we understand compilers, we can see the issue interpreters seek to solve.
+
+Interpreted languages seek to be "runtime-portable", meaning the same executable can run on any platform without needing to recompile the source code.
+
+This is achieved by targeting an imaginary CPU called a *Virtual Machine* (VM). By compiling instructions for the VM's ISA instead of having to recompile the source for each platform, we simply have the users on each platform run the same compiled file on separate devices with their platform-specific VM installed.
+
+Popular programming languages that target VMs include [Java](https://en.wikipedia.org/wiki/Java_(programming_language)), [C#](https://en.wikipedia.org/wiki/C_Sharp_(programming_language)), [Lua](https://en.wikipedia.org/wiki/Lua_(programming_language)), and of course Python.
+
+**Pros:**
+- Faster build step, often nearly instant (*or none such as in [REPLs](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop)*)
+- Same executable can run on any platform with the appropriate VM
+- More flexibility for dynamic features; memory layout can change at runtime
+
+**Cons:**
+- VM adds overhead, slower execution speed
+   - Cannot utilize hardware features as effectively as native code
+- Errors only caught at runtime
+- VM code optimizations are limited compared to AOT compilers
+
+
+## What is Bytecode?
+*Bytecode* is simply compiled Python code.
+
+As C is compiled into machine code and then run by the CPU, Python is compiled into bytecode and then run by the [Python Virtual Machine](https://docs.python.org/3/glossary.html#term-virtual-machine).
+
+Just as C# is compiled into [CIL](https://en.wikipedia.org/wiki/Common_Intermediate_Language) and then run by the [.NET runtime](https://docs.microsoft.com/en-us/dotnet/standard/clr), and Java is compiled to bytecode to be run on the [JVM](https://en.wikipedia.org/wiki/Java_virtual_machine). (*This is an oversimplification of C# and Java, but [JIT compilation](https://en.wikipedia.org/wiki/Just-in-time_compilation) is a topic for another day.*)
+
+Python offers some nice tools for understanding and inspecting bytecode.
+
+For an example, lets create a basic function:
+```python
+def add(a, b):
+    c = a + b
+    return c
+```
+All Python code when run is first compiled to bytecode. You can see the attributes of the compiled function by inspecting its `__code__` attribute:
+```python
+>>> add.__code__
+<code object add at 0x786f106af770, file "/example.py", line 1>
+```
+This [`code`](https://docs.python.org/3/library/types.html#types.CodeType) object has many useful attributes that can help us understand how Python is executing our function. Some of the most useful attributes are:
+- `co_argcount`: The number of arguments the function takes, in this case `2`
+for `a` and `b`.
+- `co_nlocals`: The number of local variables used in the function, in this case
+`3` for `a`, `b`, and `c`.
+- `co_names`: A tuple of names of all the global variables used in the function.
+In this case it is empty as we are only using the arguments and local variables.
+- The `co_varnames` attribute shows us the names of the local variables used in
+the function, in this case the arguments `a`, `b`, and `c`.
+- The `co_code` attribute contains the actual bytecode instructions in a binary
+format. 
+```python
+>>> add.__code__.co_argcount
+2
+>>> add.__code__.co_nlocals
+3
+>>> add.__code__.co_names
+()
+>>> add.__code__.co_varnames
+('a', 'b', 'c')
+```
+If we look at the `co_code` attribute, we can see the binary representation of
+the compiled function.
+```py
+>>> add.__code__.co_code
+b'\x97\x00|\x00|\x01z\x00\x00\x00}\x02|\x02S\x00'
+```
+
+What we are actually seeing is Python displaying the binary string of our compiled
+function. Python defaults to trying to display in ASCII, falling back to hexadecimal, which is why we see some random letters and symbols.
+
+The first byte,
+is displayed as `0x97` which is the hexadecimal representation of the byte value `151` in decimal.
+To better understand what each byte means, we can display the bytes as integer values.
+```py
+>>>list(add.__code__.co_code)
+[151, 0, 124, 0, 124, 1, 122, 0, 0, 0, 125, 2, 124, 2, 83, 0]
+```
+To understand what we are looking at here, we should first note that since Python 3.6,
+each instruction is atleast 2 bytes long: the first byte represents the opcode, and the second byte represents the argument for that opcode, if any. More arguments may follow for certain opcodes. 
+
+To actually understand what the first instruction `151, 0` means, we could reference the [Python Documentation](https://docs.python.org/3/library/dis.html#opcode-RESUME)
+and see opcode `151` is `RESUME`, which is a no-op for tracing, with argument `0`
+indicating the start of a function.
+> A no-op. Performs internal tracing, debugging and optimization checks.
+> The argument to RESUME indicates the reason for resuming execution:
+> - 0: The start of a function (not a generator, coroutine, or async generator)
+> - 1: After a yield expression
+> - 2: After a yield from expression
+> - 3: After an await expression
+
+Python also provides a built-in module called [`dis`](https://docs.python.org/3/library/dis.html) which can help us disassemble and understand bytecode instructions without having to manually consult the documentation for each opcode.
+```py
+>>> import dis
+>>> add.__code__.co_code[0]
+151
+>>> dis.opname[151]
+'RESUME'
+>>> add.__code__.co_code[2]
+124
+>>> dis.opname[124]
+'LOAD_FAST'
+```
+Or more conveniently, simply disassemble the entire function:
+```python
+>>> dis.dis(add)
+  1           0 RESUME                   0
+
+  2           2 LOAD_FAST                0 (a)
+              4 LOAD_FAST                1 (b)
+              6 BINARY_OP                0 (+)
+             10 STORE_FAST               2 (c)
+
+  3          12 LOAD_FAST                2 (c)
+             14 RETURN_VALUE
+```
+As `RESUME` is a no-op for tracing, lets take a look at the second line.
+```py
+  2           2 LOAD_FAST                0 (a)
+```
+Breaking down each column, there are 5 components.
+1. **Line Number** - Corresponds to the line number in the source code, note multiple bytecode instructions can correspond to the same source line number.
+2. **Byte Offset** - The byte index in the bytecode where this instruction starts
+(always even). 
+3. **Opname** - The name of the operation being performed.
+4. **Argument(s)** - The argument(s) for the operation, if any.
+5. **Argument Description** - A human readable representation of the arguments.
+
+So breaking down this instruction, we can see corresponding to line 2 in our
+code we perform the `LOAD_FAST` operation with argument `0`. If we wanted to know
+what that actually meant, we could check the Python docs
+> Pushes a reference to the local co_varnames[var_num] onto the stack.
+
+So we push the local variable at index `0` in `co_varnames`, which
+is `a`, onto the stack.
+
+Here is also a quick breakdown of what each instruction does:
+- [`RESUME 0`](https://docs.python.org/3/library/dis.html#opcode-RESUME): Prepare the frame for execution
+- [`LOAD_FAST n`](https://docs.python.org/3/library/dis.html#opcode-LOAD_FAST): Load variable at index `n` from the `co_varnames` tuple onto the stack
+- [`BINARY_OP n`](https://docs.python.org/3/library/dis.html#opcode-BINARY_OP): Pop the top two values from the stack, perform the binary operation specified by `n` (in this case, addition), and push the result back onto the stack
+- [`STORE_FAST n`](https://docs.python.org/3/library/dis.html#opcode-STORE_FAST): Store the result in the local variable at index `n` in `co_varnames`
+- [`RETURN_VALUE`](https://docs.python.org/3/library/dis.html#opcode-RETURN_VALUE): Pop the top value from the stack and return it as the result
+of the function
+
+## Realizations from Bytecode
+We can learn a lot about how Python executes code by inspecting the bytecode.
+
+Already, looking at this function we can see pretty intuitively that using `c`
+is unnecessary overhead, we are putting an item from the stack into storage then
+immediately reading it back onto the stack to output it.
+
+This is a simple example of where a compiled language may help, most of which would
+automatically replace our inefficient instructions. In fact, Python can perform
+this optimization in some cases, known as "[peephole optimization](https://docs.python.org/3/library/dis.html#peephole-optimizer)".
+
+## Unintuitive Aspects
+Now lets look at some examples of bytecode that may be surprising.
+
+Here is a simple loop that iterates a large number of times:
+```py
+# global_access.py
+for i in range(10**8):
+    i
+```
+```py
+# local_access.py
+def local_access():
+    for i in range(10**8):
+        i
+local_access()
+```
+You may expect the first program to be faster because it doesn't involve creating a
+function and then calling it. However, the second program is almost twice as
+fast on average.
+
+Timing both programs yields the following results:
+```py
+# Global access time: 3.107346900000266 seconds
+# Local access time: 1.539834900002461 seconds
+```
+
+Lets disassemble both programs to see why.
+```py
+>>> import dis
+>>> outside_function = open('global_access.py').read()
+>>> dis.dis(outside_function)
+  0           0 RESUME                   0
+
+              4 LOAD_NAME                0 (range)     # Load range function
+              6 LOAD_CONST               0 (100000000) # Load 10**8
+              8 CALL                     1             # Call range(10**8)
+             16 GET_ITER                               # Get Range Iterator
+        >>   18 FOR_ITER                 4 (to 30)     # Iterate over range
+             22 STORE_NAME               1 (i)         # Store current val in i
+
+  2          24 LOAD_NAME                1 (i)         # Load i 
+             26 POP_TOP                                # Pop i from stack
+             28 JUMP_BACKWARD            6 (to 18)     # Jump back to FOR_ITER
+
+  1     >>   30 END_FOR                                # End of for loop   
+             32 RETURN_CONST             1 (None)      # Return None
+```
+
+```py
+>>> inside_function = open('local_access.py').read()
+>>> dis.dis(inside_function)
+  1           2 LOAD_CONST               0 (<code object local_access at 0x000002193C785020, file "<dis>", line 1>) # Load function code object
+              4 MAKE_FUNCTION            0   # Create function object
+              6 STORE_NAME               0 (local_access) # Store function var 
+
+  4           8 PUSH_NULL                      # Push NULL for function call
+             10 LOAD_NAME                0 (local_access) # Load function var
+             12 CALL                     0                 # Call function
+             20 POP_TOP                                    # Pop return value
+             22 RETURN_CONST             1 (None)          # Return None
+
+Disassembly of <code object local_access at 0x000002193C785020, file "<dis>", line 1>:
+  1           0 RESUME                   0
+
+  2           2 LOAD_GLOBAL              1 (NULL + range) # Load range function
+             12 LOAD_CONST               1 (100000000)    # Load 10**8
+             14 CALL                     1                # Call range(10**8)
+             22 GET_ITER                               # Get Range Iterator
+        >>   24 FOR_ITER                 4 (to 36)     # Iterate over range
+             28 STORE_FAST               0 (i)         # Store current val in i
+
+  3          30 LOAD_FAST                0 (i)         # Load i 
+             32 POP_TOP                                # Pop i from stack
+             34 JUMP_BACKWARD            6 (to 24)     # Jump back to FOR_ITER
+
+  2     >>   36 END_FOR                                # End of for loop
+             38 RETURN_CONST             0 (None)      # Return None
+```
+Looking at the bytecode we can see that it is fairly straightforward in both cases, and they are both extremely similar.
+
+First notice that `10**8` is being loaded as a constant value and no computation is being done
+at runtime to calculate it, this is an optimization achieved by the Python compiler.
+
+Also we can notice that both functions are using a `FOR_ITER` and `JUMP_BACKWARD` instructions to iterate over the range iterator. Both also use `POP_TOP` to discard the value of `i` after loading it onto the stack.
+
+However, there are a few differences. The most obvious difference is as we expected, there is additional overhead in the second program
+required to create and call the function.
+
+We can also see that the first function stores and loads `i` using an instruction called `STORE_NAME` and `LOAD_NAME` while
+the second function uses an instruction conveniently named `STORE_FAST` and `LOAD_FAST`.
+
+It doesn't take much intuition to guess that `STORE_FAST` and `LOAD_FAST` are faster than
+`STORE_NAME` and `LOAD_NAME`, but why is that?
+
+### STORE_FAST vs STORE_NAME
+The difference between these instructions is in how they access variables.
+`STORE_NAME` and `LOAD_NAME` are used for accessing variables in the global or
+enclosing scopes, while `STORE_FAST` and `LOAD_FAST` are used for accessing local
+variables.
+
+How Python manages global and local variables is different. Global variables are stored in a dictionary corresponding the module's namespace while local variables are stored in an array specific to each function call frame.
+
+What this means is that `STORE_NAME` and `LOAD_NAME` have to hash the variable name and perform a dictionary lookup across multiple namespaces to find the variable in the appropriate scope, which is an `O(1)` operation on average, and can be slower due to hash collisions and resizing.
+
+On the other hand, `STORE_FAST` and `LOAD_FAST` access local variables using
+an array index, which is a much faster `O(1)` operation.
+
+
+This is an important realization, as it informs using local variables over global
+variables can lead to significant performance improvements in critical Python code.
+
+If you are interested in the specifics of how Python implements these lookups, I recommend
+checking out the actual ceval.c source code in the [CPython repository](https://svn.python.org/projects/python/trunk/Python/ceval.c). All of the opcodes are implemented in
+a giant switch statement which is easily seachable by the name of the opcode.
+### Dot access vs Local Binding
+Another interesting realization comes from looking at attribute access.
+
+Consider the following snippets:
+```py
+# counter.py
+class Counter:
+    def __init__(self):
+        self.count = 0
+```
+
+```py
+# dot_access.py
+from counter import Counter
+def dot_increment_counter():
+    counter = Counter()
+    for _ in range(10**8):
+        counter.count += 1
+```
+```py
+# local_binding.py
+from counter import Counter
+def bind_increment_counter():
+    counter = Counter()
+    count = counter.count
+    for _ in range(10**8):
+        count += 1
+    counter.count = count
+```
+Intuitively we would expect that both functions perform similarly, as they are both incrementing the `count` attribute of a `Counter` object in a loop. However, when we run both functions and measure their execution time, we find the following results:
+```py
+# Dot access time: 3.6751 seconds
+# Bind access time: 2.7750 seconds
+```
+The revalent bytecode inside the loop for both functions is as follows:
+```py
+# dot_access.py
+  5          50 LOAD_FAST                0 (counter)
+             52 COPY                     1
+             54 LOAD_ATTR                4 (count)
+             74 LOAD_CONST               2 (1)
+             76 BINARY_OP               13 (+=)
+             80 SWAP                     2
+             82 STORE_ATTR               2 (count)
+             92 JUMP_BACKWARD           25 (to 44)
+# local_binding.py
+  6          74 LOAD_FAST                1 (count)
+             76 LOAD_CONST               2 (1)
+             78 BINARY_OP               13 (+=)
+             82 STORE_FAST               1 (count)
+             84 JUMP_BACKWARD            9 (to 68)
+```
+Here we can see that the dot access version requires multiple additional instructions to access the `count` attribute of the `counter` object. 
+
+Specifically, it uses [`LOAD_ATTR`](https://docs.python.org/3/library/dis.html#opcode-LOAD_ATTR) to retrieve the attribute and [`STORE_ATTR`](https://docs.python.org/3/library/dis.html#opcode-STORE_ATTR) to set it back, which involve dictionary lookups similar to `LOAD_NAME` and `STORE_NAME`. It also uses the `SWAP` and `COPY` instructions to manage the stack as it's managing the `counter` object reference.
+
+In contrast, the local binding version simply uses `LOAD_FAST` and `STORE_FAST` to access the local variable `count`, which is much faster.
+
+### Tuples vs Lists
+Another interesting observation comes from comparing the bytecode generated for
+tuple literals versus list literals.
+Consider the following snippets:
+```py
+def create_tuple():
+    return (1, 2, 3, 4, 5)
+def create_list():
+    return [1, 2, 3, 4, 5]
+```
+Disassembling both functions yields the following bytecode:
+```py
+# create_tuple
+  1           0 RESUME                   0
+
+  2           2 RETURN_CONST             1 ((1, 2, 3, 4, 5))
+# create_list
+  1           0 RESUME                   0
+
+  2           2 BUILD_LIST               0
+              4 LOAD_CONST               1 ((1, 2, 3, 4, 5))
+              6 LIST_EXTEND              1
+              8 RETURN_VALUE
+```    
+Testing 10^8 iterations of each function yields the following results:
+```py
+# Tuple creation time: 4.7098 seconds
+# List creation time: 7.2457 seconds
+```
+Here we can see creating a literal tuple is much more efficient than a list, and should
+be favored when mutability is not required.
+
+## TLDR
+For performance critical Python code, consider the following tips:
+- Bind variables locally when possible instead of dot accessing attributes of objects and avoid using globals, to prevent dictionary lookups.
+- Use built-in's wherever possible as they are implemented in C and optimized.
+- List comprehensions often generate faster and more efficient bytecode than equivalent for-loops (because append requires a lookup).
+- Favor `tuple` literals over `list` literals when possible, as they are immutable and can be optimized better by the compiler.
+- Use `join` to concatenate strings instead of using `+` in a loop as it does not create intermediate string objects.
+
+### IMPORTANT NOTE
+
+While understanding bytecode can help understand how Python works and inform how 
+to write faster Python code, it's important to remember that Python is a tool designed for
+developer productivity.
+
+If you reach a point of optimization where you are considering inspecting bytecode to improve performance, it is worth considering if Python is the right tool for the job.
+
+Python has inherent runtime overhead compared to an AOT compiled language like [C](https://en.wikipedia.org/wiki/C_(programming_language)) or [Rust](https://en.wikipedia.org/wiki/Rust_(programming_language)). However, if performance is critical in Python, code can be compiled in a lower level language and interfaced with Python using [FFI](https://en.wikipedia.org/wiki/Foreign_function_interface) libraries like [Cython](https://cython.org/) or [ctypes](https://docs.python.org/3/library/ctypes.html).
+
+### References
+- [CPython Interpreter](https://docs.python.org/3/c-api/index.html)
+- [Python Bytecode Documentation](https://docs.python.org/3/library/dis.html)
+- [Understanding Python Bytecode](https://realpython.com/python-bytecode/)
+- [Python's Virtual Machine](https://medium.com/@jonathan_hui/python-under-the-hood-part-1-python-virtual-machine-6f3c8ff3f1f)
+- [James Bennett, A Bit about Bytes Pycon 2018](https://youtu.be/GNPKBICTF2w?si=9wkd_fMw0W1bbUxG)
+- [Anjana Vakil, Exploring Python Bytecode EuroPython 2016](https://youtu.be/8aGhZQkoFbQ)
+### Acknowledgements
+*Thanks to the Python community for their continuous efforts in improving the language.*

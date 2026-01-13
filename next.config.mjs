@@ -1,5 +1,6 @@
 import createMDX from '@next/mdx';
 import rehypePrettyCode from 'rehype-pretty-code';
+import remarkGfm from 'remark-gfm'
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter';
 import rehypeHighlight from 'rehype-highlight';
@@ -25,6 +26,7 @@ const withMDX = createMDX({
     remarkPlugins: [
       remarkFrontmatter, 
       [remarkMdxFrontmatter, { name: 'frontmatter' }], 
+      remarkGfm,
     ],
     rehypePlugins: [rehypeHighlight, rehypeHighlightCodeLines],
   },
